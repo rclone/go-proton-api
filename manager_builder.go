@@ -10,7 +10,7 @@ import (
 
 const (
 	// DefaultHostURL is the default host of the API.
-	DefaultHostURL = "https://mail.proton.me/api"
+	DefaultHostURL = "https://drive-api.proton.me"
 
 	// DefaultAppVersion is the default app version used to communicate with the API.
 	// This must be changed (using the WithAppVersion option) for production use.
