@@ -40,11 +40,11 @@ func GetNameHash(name string, hashKey []byte) (string, error) {
 type MoveLinkReq struct {
 	ParentLinkID string
 
-	Name               string  // Encrypted File Name
-	NameSignatureEmail string  `json:",omitempty"`
-	OriginalHash       string  // Old Encrypted File Name Hash
-	Hash               string  // Encrypted File Name Hash by using parent's NodeHashKey
-	ContentHash        *string `json:",omitempty"`
+	Name               string // Encrypted File Name
+	NameSignatureEmail string `json:",omitempty"`
+	OriginalHash       string // Old Encrypted File Name Hash
+	Hash               string // Encrypted File Name Hash by using parent's NodeHashKey
+	ContentHash        *string
 
 	NodePassphrase          string // The passphrase used to unlock the NodeKey, encrypted by the owning Link/Share keyring.
 	NodePassphraseSignature string `json:",omitempty"` // The signature of the NodePassphrase
