@@ -32,6 +32,20 @@ func WithAppVersion(appVersion string) Option {
 	}
 }
 
+func WithDriveSDKVersion(driveSDKVersion string) Option {
+	return &withDriveSDKVersion{
+		driveSDKVersion: driveSDKVersion,
+	}
+}
+
+type withDriveSDKVersion struct {
+	driveSDKVersion string
+}
+
+func (opt withDriveSDKVersion) config(builder *managerBuilder) {
+	builder.driveSDKVersion = opt.driveSDKVersion
+}
+
 type withUserAgent struct {
 	userAgent string
 }

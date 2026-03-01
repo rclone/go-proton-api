@@ -36,6 +36,20 @@ func (c *Client) MoveLink(ctx context.Context, shareID, linkID string, req MoveL
 	return nil
 }
 
+func (c *Client) MoveLinkByVolume(ctx context.Context, volumeID, linkID string, req MoveLinkReq) error {
+	var res struct {
+		Code int
+	}
+
+	if err := c.do(ctx, func(r *resty.Request) (*resty.Response, error) {
+		return r.SetResult(&res).SetBody(req).Put("/drive/v2/volumes/" + volumeID + "/links/" + linkID + "/move")
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Client) CreateFile(ctx context.Context, shareID string, req CreateFileReq) (CreateFileRes, error) {
 	var res struct {
 		Code int

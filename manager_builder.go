@@ -22,30 +22,32 @@ const (
 )
 
 type managerBuilder struct {
-	hostURL      string
-	appVersion   string
-	userAgent    string
-	transport    http.RoundTripper
-	verifyProofs bool
-	cookieJar    http.CookieJar
-	retryCount   int
-	logger       resty.Logger
-	debug        bool
-	panicHandler async.PanicHandler
+	hostURL         string
+	appVersion      string
+	driveSDKVersion string
+	userAgent       string
+	transport       http.RoundTripper
+	verifyProofs    bool
+	cookieJar       http.CookieJar
+	retryCount      int
+	logger          resty.Logger
+	debug           bool
+	panicHandler    async.PanicHandler
 }
 
 func newManagerBuilder() *managerBuilder {
 	return &managerBuilder{
-		hostURL:      DefaultHostURL,
-		appVersion:   DefaultAppVersion,
-		userAgent:    DefaultUserAgent,
-		transport:    http.DefaultTransport,
-		verifyProofs: true,
-		cookieJar:    nil,
-		retryCount:   3,
-		logger:       nil,
-		debug:        false,
-		panicHandler: async.NoopPanicHandler{},
+		hostURL:         DefaultHostURL,
+		appVersion:      DefaultAppVersion,
+		driveSDKVersion: "",
+		userAgent:       DefaultUserAgent,
+		transport:       http.DefaultTransport,
+		verifyProofs:    true,
+		cookieJar:       nil,
+		retryCount:      3,
+		logger:          nil,
+		debug:           false,
+		panicHandler:    async.NoopPanicHandler{},
 	}
 }
 
@@ -80,6 +82,9 @@ func (builder *managerBuilder) build() *Manager {
 	// Set app version in header.
 	m.rc.OnBeforeRequest(func(_ *resty.Client, req *resty.Request) error {
 		req.SetHeader("x-pm-appversion", builder.appVersion)
+		if builder.driveSDKVersion != "" {
+			req.SetHeader("x-pm-drive-sdk-version", builder.driveSDKVersion)
+		}
 		req.SetHeader("User-Agent", builder.userAgent)
 		return nil
 	})
