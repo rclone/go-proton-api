@@ -1674,7 +1674,8 @@ func TestServer_RealProxy(t *testing.T) {
 
 	m := proton.New(
 		proton.WithHostURL(proxy.GetProxyURL()),
-		proton.WithAppVersion("web-account@5.0.345.1"),
+		proton.WithAppVersion("external-drive-rclone@1.73.1"),
+		proton.WithDriveSDKVersion("js@5.2.0+af66c8fa"),
 		proton.WithTransport(proton.InsecureTransport()),
 	)
 	defer m.Close()
@@ -1706,7 +1707,8 @@ func TestServer_RealProxy_Cache(t *testing.T) {
 
 	m := proton.New(
 		proton.WithHostURL(proxy.GetProxyURL()),
-		proton.WithAppVersion("web-account@5.0.345.1"),
+		proton.WithAppVersion("external-drive-rclone@1.73.1"),
+		proton.WithDriveSDKVersion("js@5.2.0+af66c8fa"),
 		proton.WithTransport(proton.InsecureTransport()),
 		proton.WithSkipVerifyProofs(),
 	)
