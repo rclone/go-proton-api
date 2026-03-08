@@ -75,7 +75,7 @@ func (s *Server) handleProxyAuthPost(w http.ResponseWriter, r *http.Request, pro
 		return
 	}
 
-	cacheKey := authCacheKey(req.Username, r)
+	cacheKey := authCacheKeyFor(s.authCacher, req.Username, r)
 
 	if info, ok := s.authCacher.GetAuth(cacheKey); ok {
 		if err := writeBody(w, info); err != nil {
@@ -111,7 +111,7 @@ func (s *Server) handleProxyAuthInfo(proxier func(string) HandlerFunc) http.Hand
 			return
 		}
 
-		cacheKey := authCacheKey(req.Username, r)
+		cacheKey := authCacheKeyFor(s.authCacher, req.Username, r)
 
 		if info, ok := s.authCacher.GetAuthInfo(cacheKey); ok {
 			if err := writeBody(w, info); err != nil {
@@ -142,6 +142,14 @@ func authCacheKey(username string, r *http.Request) string {
 		r.Header.Get("x-pm-appversion"),
 		r.Header.Get("x-pm-drive-sdk-version"),
 	}, "\x00")
+}
+
+func authCacheKeyFor(cacher AuthCacher, username string, r *http.Request) string {
+	if _, ok := cacher.(*authCache); ok {
+		return authCacheKey(username, r)
+	}
+
+	return username
 }
 
 type HandlerFunc func(http.ResponseWriter, *http.Request) ([]byte, error)

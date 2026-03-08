@@ -1537,6 +1537,79 @@ func TestServer_Proxy_Cache_DoesNotReuseAuthAcrossDriveSDKVersions(t *testing.T)
 	})
 }
 
+type recordingAuthCache struct {
+	authInfoKeys []string
+	authKeys     []string
+	info         map[string]proton.AuthInfo
+	auth         map[string]proton.Auth
+}
+
+func newRecordingAuthCache() *recordingAuthCache {
+	return &recordingAuthCache{
+		info: make(map[string]proton.AuthInfo),
+		auth: make(map[string]proton.Auth),
+	}
+}
+
+func (c *recordingAuthCache) GetAuthInfo(username string) (proton.AuthInfo, bool) {
+	c.authInfoKeys = append(c.authInfoKeys, username)
+	info, ok := c.info[username]
+	return info, ok
+}
+
+func (c *recordingAuthCache) SetAuthInfo(username string, info proton.AuthInfo) {
+	c.authInfoKeys = append(c.authInfoKeys, username)
+	c.info[username] = info
+}
+
+func (c *recordingAuthCache) GetAuth(username string) (proton.Auth, bool) {
+	c.authKeys = append(c.authKeys, username)
+	auth, ok := c.auth[username]
+	return auth, ok
+}
+
+func (c *recordingAuthCache) SetAuth(username string, auth proton.Auth) {
+	c.authKeys = append(c.authKeys, username)
+	c.auth[username] = auth
+}
+
+func TestServer_Proxy_Cache_PreservesCustomAuthCacherUsernameKeys(t *testing.T) {
+	withServer(t, func(ctx context.Context, s *Server, _ *proton.Manager) {
+		_, _, err := s.CreateUser("user", []byte("pass"))
+		require.NoError(t, err)
+
+		cache := newRecordingAuthCache()
+		proxy := New(
+			WithProxyOrigin(s.GetHostURL()),
+			WithProxyTransport(proton.InsecureTransport()),
+			WithAuthCacher(cache),
+		)
+		defer proxy.Close()
+
+		m := proton.New(
+			proton.WithHostURL(proxy.GetProxyURL()),
+			proton.WithAppVersion("web-drive@5.2.0+af66c8fa"),
+			proton.WithDriveSDKVersion("js@5.2.0+af66c8fa"),
+			proton.WithTransport(proton.InsecureTransport()),
+			proton.WithSkipVerifyProofs(),
+		)
+		defer m.Close()
+
+		c, _, err := m.NewClientWithLogin(ctx, "user", []byte("pass"))
+		require.NoError(t, err)
+		defer c.Close()
+
+		require.NotEmpty(t, cache.authInfoKeys)
+		require.NotEmpty(t, cache.authKeys)
+		for _, key := range cache.authInfoKeys {
+			require.Equal(t, "user", key)
+		}
+		for _, key := range cache.authKeys {
+			require.Equal(t, "user", key)
+		}
+	})
+}
+
 func TestServer_Proxy_AuthDelete(t *testing.T) {
 	withServer(t, func(ctx context.Context, s *Server, m *proton.Manager) {
 		withUser(ctx, t, s, m, "user", "pass", func(_ *proton.Client) {
