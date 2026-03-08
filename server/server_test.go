@@ -1428,6 +1428,115 @@ func TestServer_Proxy_Cache(t *testing.T) {
 	})
 }
 
+func TestServer_Proxy_Cache_DoesNotReuseAuthAcrossAppVersions(t *testing.T) {
+	withServer(t, func(ctx context.Context, s *Server, _ *proton.Manager) {
+		_, _, err := s.CreateUser("user", []byte("pass"))
+		require.NoError(t, err)
+
+		proxy := New(
+			WithProxyOrigin(s.GetHostURL()),
+			WithProxyTransport(proton.InsecureTransport()),
+			WithAuthCacher(NewAuthCache()),
+		)
+		defer proxy.Close()
+
+		var authCalls []Call
+		var authInfoCalls []Call
+
+		s.AddCallWatcher(func(call Call) {
+			authCalls = append(authCalls, call)
+		}, "/auth/v4")
+		s.AddCallWatcher(func(call Call) {
+			authInfoCalls = append(authInfoCalls, call)
+		}, "/auth/v4/info")
+
+		newManager := func(appVersion string) *proton.Manager {
+			return proton.New(
+				proton.WithHostURL(proxy.GetProxyURL()),
+				proton.WithAppVersion(appVersion),
+				proton.WithTransport(proton.InsecureTransport()),
+				proton.WithSkipVerifyProofs(),
+			)
+		}
+
+		m1 := newManager("web-account@5.0.345.1")
+		defer m1.Close()
+
+		c1, auth1, err := m1.NewClientWithLogin(ctx, "user", []byte("pass"))
+		require.NoError(t, err)
+		defer c1.Close()
+
+		m2 := newManager("web-drive@5.2.0+af66c8fa")
+		defer m2.Close()
+
+		c2, auth2, err := m2.NewClientWithLogin(ctx, "user", []byte("pass"))
+		require.NoError(t, err)
+		defer c2.Close()
+
+		require.NotEqual(t, auth1.UID, auth2.UID)
+		require.Len(t, authCalls, 2)
+		require.Len(t, authInfoCalls, 2)
+		require.Equal(t, "web-account@5.0.345.1", authCalls[0].RequestHeader.Get("x-pm-appversion"))
+		require.Equal(t, "web-drive@5.2.0+af66c8fa", authCalls[1].RequestHeader.Get("x-pm-appversion"))
+	})
+}
+
+func TestServer_Proxy_Cache_DoesNotReuseAuthAcrossDriveSDKVersions(t *testing.T) {
+	withServer(t, func(ctx context.Context, s *Server, _ *proton.Manager) {
+		_, _, err := s.CreateUser("user", []byte("pass"))
+		require.NoError(t, err)
+
+		proxy := New(
+			WithProxyOrigin(s.GetHostURL()),
+			WithProxyTransport(proton.InsecureTransport()),
+			WithAuthCacher(NewAuthCache()),
+		)
+		defer proxy.Close()
+
+		var authCalls []Call
+		var authInfoCalls []Call
+
+		s.AddCallWatcher(func(call Call) {
+			authCalls = append(authCalls, call)
+		}, "/auth/v4")
+		s.AddCallWatcher(func(call Call) {
+			authInfoCalls = append(authInfoCalls, call)
+		}, "/auth/v4/info")
+
+		newManager := func(driveSDKVersion string) *proton.Manager {
+			return proton.New(
+				proton.WithHostURL(proxy.GetProxyURL()),
+				proton.WithAppVersion("web-drive@5.2.0+af66c8fa"),
+				proton.WithDriveSDKVersion(driveSDKVersion),
+				proton.WithTransport(proton.InsecureTransport()),
+				proton.WithSkipVerifyProofs(),
+			)
+		}
+
+		m1 := newManager("js@5.2.0+af66c8fa")
+		defer m1.Close()
+
+		c1, auth1, err := m1.NewClientWithLogin(ctx, "user", []byte("pass"))
+		require.NoError(t, err)
+		defer c1.Close()
+
+		m2 := newManager("js@5.2.1+af66c8fa")
+		defer m2.Close()
+
+		c2, auth2, err := m2.NewClientWithLogin(ctx, "user", []byte("pass"))
+		require.NoError(t, err)
+		defer c2.Close()
+
+		require.NotEqual(t, auth1.UID, auth2.UID)
+		require.Len(t, authCalls, 2)
+		require.Len(t, authInfoCalls, 2)
+		require.Equal(t, "js@5.2.0+af66c8fa", authCalls[0].RequestHeader.Get("x-pm-drive-sdk-version"))
+		require.Equal(t, "js@5.2.1+af66c8fa", authCalls[1].RequestHeader.Get("x-pm-drive-sdk-version"))
+		require.Equal(t, "js@5.2.0+af66c8fa", authInfoCalls[0].RequestHeader.Get("x-pm-drive-sdk-version"))
+		require.Equal(t, "js@5.2.1+af66c8fa", authInfoCalls[1].RequestHeader.Get("x-pm-drive-sdk-version"))
+	})
+}
+
 func TestServer_Proxy_AuthDelete(t *testing.T) {
 	withServer(t, func(ctx context.Context, s *Server, m *proton.Manager) {
 		withUser(ctx, t, s, m, "user", "pass", func(_ *proton.Client) {
@@ -1492,6 +1601,7 @@ func TestServer_RealProxy(t *testing.T) {
 
 	m := proton.New(
 		proton.WithHostURL(proxy.GetProxyURL()),
+		proton.WithAppVersion("web-account@5.0.345.1"),
 		proton.WithTransport(proton.InsecureTransport()),
 	)
 	defer m.Close()
@@ -1523,6 +1633,7 @@ func TestServer_RealProxy_Cache(t *testing.T) {
 
 	m := proton.New(
 		proton.WithHostURL(proxy.GetProxyURL()),
+		proton.WithAppVersion("web-account@5.0.345.1"),
 		proton.WithTransport(proton.InsecureTransport()),
 		proton.WithSkipVerifyProofs(),
 	)
