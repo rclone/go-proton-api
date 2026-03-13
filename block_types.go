@@ -28,6 +28,19 @@ type BlockUploadInfo struct {
 	Size         int64
 	EncSignature string
 	Hash         string
+	Verifier     BlockUploadVerifier `json:",omitempty"`
+}
+
+// BlockUploadVerifier holds the per-block verification token required by the
+// Proton storage backend to authenticate that the block was correctly encrypted.
+type BlockUploadVerifier struct {
+	Token string `json:",omitempty"`
+}
+
+// RevisionVerification is the response from the block upload verification endpoint.
+type RevisionVerification struct {
+	VerificationCode   string // Base64-encoded verification code XOR'd with each block
+	ContentKeyPacket   string // Encrypted content session key (for client-side integrity check)
 }
 
 type BlockUploadLink struct {
