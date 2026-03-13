@@ -38,6 +38,8 @@ type Link struct {
 
 	FileProperties   *FileProperties
 	FolderProperties *FolderProperties
+
+	KeyAuthor *string // If nil/empty, node is anonymous; signatures should be included in move
 }
 
 type LinkState int

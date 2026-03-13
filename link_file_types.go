@@ -47,6 +47,10 @@ type MoveLinkReq struct {
 	NodePassphraseSignature string // The signature of the NodePassphrase
 
 	SignatureAddress string // Signature email address used to sign passphrase and name
+
+	// ContentHash must be sent explicitly as null for file moves (not omitted).
+	// Use a pointer so that nil serialises as JSON null rather than being omitted.
+	ContentHash *string `json:"ContentHash"`
 }
 
 func (moveLinkReq *MoveLinkReq) SetName(name string, addrKR, nodeKR *crypto.KeyRing) error {
