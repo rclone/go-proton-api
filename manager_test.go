@@ -16,6 +16,52 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestManagerSetsSDKHeadersWhenConfigured(t *testing.T) {
+	var gotAppVersion string
+	var gotSDKVersion string
+	var gotUserAgent string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAppVersion = r.Header.Get("x-pm-appversion")
+		gotSDKVersion = r.Header.Get("x-pm-drive-sdk-version")
+		gotUserAgent = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	m := proton.New(
+		proton.WithHostURL(ts.URL),
+		proton.WithAppVersion("web-drive@5.2.0+af66c8fa"),
+		proton.WithDriveSDKVersion("js@0.10.0"),
+		proton.WithUserAgent("go-proton-api-tests"),
+	)
+	defer m.Close()
+
+	require.NoError(t, m.Ping(context.Background()))
+	require.Equal(t, "web-drive@5.2.0+af66c8fa", gotAppVersion)
+	require.Equal(t, "js@0.10.0", gotSDKVersion)
+	require.Equal(t, "go-proton-api-tests", gotUserAgent)
+}
+
+func TestManagerOmitsSDKHeaderByDefault(t *testing.T) {
+	var gotSDKVersion string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotSDKVersion = r.Header.Get("x-pm-drive-sdk-version")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	m := proton.New(
+		proton.WithHostURL(ts.URL),
+		proton.WithAppVersion("test-app-version"),
+	)
+	defer m.Close()
+
+	require.NoError(t, m.Ping(context.Background()))
+	require.Equal(t, "", gotSDKVersion)
+}
+
 func TestConnectionReuse(t *testing.T) {
 	s := server.New()
 	defer s.Close()

@@ -34,6 +34,7 @@ const (
 	// ProtonDrive
 	AFileOrFolderNameExist Code = 2500
 	ADraftExist            Code = 2500
+	AFileOrFolderNotFound  Code = 2501
 )
 
 var (

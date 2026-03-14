@@ -9,6 +9,10 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+func isDeleteChildrenResponseCodeAllowed(code Code) bool {
+	return code == SuccessCode || code == AFileOrFolderNotFound
+}
+
 func (c *Client) ListChildren(ctx context.Context, shareID, linkID string, showAll bool) ([]Link, error) {
 	var res struct {
 		Links []Link
@@ -107,7 +111,7 @@ func (c *Client) DeleteChildren(ctx context.Context, shareID, linkID string, chi
 		}
 
 		for _, res := range res.Responses {
-			if res.Response.Code != SuccessCode {
+			if !isDeleteChildrenResponseCodeAllowed(res.Response.Code) {
 				return fmt.Errorf("failed to delete child: %w", res.Response)
 			}
 		}

@@ -17,17 +17,23 @@ type Block struct {
 type BlockUploadReq struct {
 	AddressID  string
 	ShareID    string
+	VolumeID   string `json:",omitempty"`
 	LinkID     string
 	RevisionID string
 
 	BlockList []BlockUploadInfo
 }
 
+type Verifier struct {
+	Token string
+}
+
 type BlockUploadInfo struct {
 	Index        int
-	Size         int64
-	EncSignature string
-	Hash         string
+	Verifier     *Verifier `json:",omitempty"`
+	Size         int64     `json:",omitempty"`
+	EncSignature string    `json:",omitempty"`
+	Hash         string    `json:",omitempty"`
 }
 
 type BlockUploadLink struct {
