@@ -19,6 +19,7 @@ type BlockUploadReq struct {
 	ShareID    string
 	LinkID     string
 	RevisionID string
+	VolumeID   string
 
 	BlockList []BlockUploadInfo
 }
@@ -28,6 +29,16 @@ type BlockUploadInfo struct {
 	Size         int64
 	EncSignature string
 	Hash         string
+	Verifier     *BlockVerifier `json:"Verifier,omitempty"`
+}
+
+type BlockVerifier struct {
+	Token string
+}
+
+type UploadVerification struct {
+	VerificationCode string
+	ContentKeyPacket string
 }
 
 type BlockUploadLink struct {
