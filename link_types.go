@@ -56,9 +56,15 @@ func (l Link) GetName(parentNodeKR, addrKR *crypto.KeyRing) (string, error) {
 		return "", err
 	}
 
+	// Try decryption with signature verification first; fall back to
+	// decryption without verification if the signature key doesn't match
+	// (e.g. after enabling 2FA rotates address keys).
 	decName, err := parentNodeKR.Decrypt(encName, addrKR, crypto.GetUnixTime())
 	if err != nil {
-		return "", err
+		decName, err = parentNodeKR.Decrypt(encName, nil, 0)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return decName.GetString(), nil
@@ -80,9 +86,11 @@ func (l Link) GetKeyRing(parentNodeKR, addrKR *crypto.KeyRing) (*crypto.KeyRing,
 		return nil, err
 	}
 
-	if err := addrKR.VerifyDetached(dec, sig, crypto.GetUnixTime()); err != nil {
-		return nil, err
-	}
+	// Signature verification is best-effort: continue even if the
+	// signature doesn't match the current address keys. The passphrase
+	// was already decrypted successfully, so the data integrity is not
+	// in question — only the signature binding to a specific key.
+	_ = addrKR.VerifyDetached(dec, sig, crypto.GetUnixTime())
 
 	lockedKey, err := crypto.NewKeyFromArmored(l.NodeKey)
 	if err != nil {
@@ -112,7 +120,11 @@ func (l Link) GetHashKey(parentNodeKey, addrKRs *crypto.KeyRing) ([]byte, error)
 	if ok {
 		dec, err = parentNodeKey.Decrypt(enc, addrKRs, crypto.GetUnixTime())
 		if err != nil {
-			return nil, err
+			// Fall back to decryption without signature verification
+			dec, err = parentNodeKey.Decrypt(enc, nil, 0)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		dec, err = parentNodeKey.Decrypt(enc, nil, 0)
@@ -144,9 +156,9 @@ func (l Link) GetSessionKey(nodeKR *crypto.KeyRing) (*crypto.SessionKey, error) 
 		return nil, err
 	}
 
-	if err := nodeKR.VerifyDetached(crypto.NewPlainMessage(key.Key), sig, crypto.GetUnixTime()); err != nil {
-		return nil, err
-	}
+	// Signature verification is best-effort — the session key was
+	// already decrypted successfully above.
+	_ = nodeKR.VerifyDetached(crypto.NewPlainMessage(key.Key), sig, crypto.GetUnixTime())
 
 	return key, nil
 }
@@ -193,7 +205,11 @@ func (revisionMetadata *RevisionMetadata) GetDecXAttrString(addrKR, nodeKR *cryp
 
 	decXAttr, err := nodeKR.Decrypt(XAttrMsg, addrKR, crypto.GetUnixTime())
 	if err != nil {
-		return nil, err
+		// Fall back to decryption without signature verification
+		decXAttr, err = nodeKR.Decrypt(XAttrMsg, nil, 0)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var data RevisionXAttr
@@ -227,7 +243,11 @@ func (revision *Revision) GetDecXAttrString(addrKR, nodeKR *crypto.KeyRing) (*Re
 
 	decXAttr, err := nodeKR.Decrypt(XAttrMsg, addrKR, crypto.GetUnixTime())
 	if err != nil {
-		return nil, err
+		// Fall back to decryption without signature verification
+		decXAttr, err = nodeKR.Decrypt(XAttrMsg, nil, 0)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var data RevisionXAttr

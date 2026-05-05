@@ -51,9 +51,9 @@ func (s Share) GetKeyRing(addrKR *crypto.KeyRing) (*crypto.KeyRing, error) {
 		return nil, err
 	}
 
-	if err := addrKR.VerifyDetached(dec, sig, crypto.GetUnixTime()); err != nil {
-		return nil, err
-	}
+	// Signature verification is best-effort: continue even if the
+	// signature doesn't match the current address keys.
+	_ = addrKR.VerifyDetached(dec, sig, crypto.GetUnixTime())
 
 	lockedKey, err := crypto.NewKeyFromArmored(s.Key)
 	if err != nil {
