@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/bradenaw/juniper/xslices"
 	"github.com/emersion/go-vcard"
 	"github.com/rclone/go-proton-api"

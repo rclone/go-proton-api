@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/ProtonMail/gluon/rfc822"
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSendDraftReq_AddMIMEPackage(t *testing.T) {
-	key, err := crypto.GenerateKey("name", "email", "rsa", 2048)
+	key, err := crypto.PGP().KeyGeneration().AddUserId("name", "email").New().GenerateKey()
 	require.NoError(t, err)
 
 	kr, err := crypto.NewKeyRing(key)
@@ -138,7 +138,7 @@ func TestSendDraftReq_AddMIMEPackage(t *testing.T) {
 }
 
 func TestSendDraftReq_AddPackage(t *testing.T) {
-	key, err := crypto.GenerateKey("name", "email", "rsa", 2048)
+	key, err := crypto.PGP().KeyGeneration().AddUserId("name", "email").New().GenerateKey()
 	require.NoError(t, err)
 
 	kr, err := crypto.NewKeyRing(key)

@@ -1,7 +1,7 @@
 package backend
 
 import (
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/bradenaw/juniper/xslices"
 	"github.com/rclone/go-proton-api"
 )

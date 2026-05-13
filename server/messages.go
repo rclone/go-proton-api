@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/ProtonMail/gluon/rfc822"
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/gin-gonic/gin"
 	"github.com/rclone/go-proton-api"
 	"golang.org/x/exp/slices"
@@ -557,7 +557,7 @@ func (s *Server) importAttachment(userID, messageID string, att *rfc822.Section)
 		filename = "attachment.bin"
 	}
 
-	var body *crypto.PGPSplitMessage
+	var body *crypto.PGPMessage
 
 	if header.Get("Content-Transfer-Encoding") == "base64" {
 		b := make([]byte, base64.StdEncoding.DecodedLen(len(att.Body())))
@@ -567,24 +567,14 @@ func (s *Server) importAttachment(userID, messageID string, att *rfc822.Section)
 			return proton.Attachment{}, fmt.Errorf("failed to decode attachment body: %w", err)
 		}
 
-		split, err := crypto.NewPGPMessage(b[:n]).SplitMessage()
-		if err != nil {
-			return proton.Attachment{}, fmt.Errorf("failed to split attachment body: %w", err)
-		}
-
-		body = split
+		body = crypto.NewPGPMessage(b[:n])
 	} else {
 		msg, err := crypto.NewPGPMessageFromArmored(string(att.Body()))
 		if err != nil {
 			return proton.Attachment{}, fmt.Errorf("failed to parse attachment body: %w", err)
 		}
 
-		split, err := msg.SplitMessage()
-		if err != nil {
-			return proton.Attachment{}, fmt.Errorf("failed to split attachment body: %w", err)
-		}
-
-		body = split
+		body = msg
 	}
 
 	// TODO: What about the signature?
@@ -594,8 +584,8 @@ func (s *Server) importAttachment(userID, messageID string, att *rfc822.Section)
 		mimeType,
 		proton.Disposition(disposition),
 		header.Get("Content-Id"),
-		body.GetBinaryKeyPacket(),
-		body.GetBinaryDataPacket(),
+		body.BinaryKeyPacket(),
+		body.BinaryDataPacket(),
 		"",
 	)
 }

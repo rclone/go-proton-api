@@ -7,24 +7,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 )
 
 /* Helper function */
 func getEncryptedName(name string, addrKR, nodeKR *crypto.KeyRing) (string, error) {
-	clearTextName := crypto.NewPlainMessageFromString(name)
-
-	encName, err := nodeKR.Encrypt(clearTextName, addrKR)
+	encName, err := encryptMessage(nodeKR, []byte(name), addrKR)
 	if err != nil {
 		return "", err
 	}
 
-	encNameString, err := encName.GetArmored()
-	if err != nil {
-		return "", err
-	}
-
-	return encNameString, nil
+	return encName.Armor()
 }
 
 func GetNameHash(name string, hashKey []byte) (string, error) {
@@ -119,22 +112,17 @@ func (createFileReq *CreateFileReq) SetHash(name string, hashKey []byte) error {
 }
 
 func (createFileReq *CreateFileReq) SetContentKeyPacketAndSignature(kr *crypto.KeyRing) (*crypto.SessionKey, error) {
-	newSessionKey, err := crypto.GenerateSessionKey()
+	newSessionKey, err := crypto.PGP().GenerateSessionKey()
 	if err != nil {
 		return nil, err
 	}
 
-	encSessionKey, err := kr.EncryptSessionKey(newSessionKey)
+	encSessionKey, err := encryptSessionKey(kr, newSessionKey)
 	if err != nil {
 		return nil, err
 	}
 
-	sessionKeyPlainMessage := crypto.NewPlainMessage(newSessionKey.Key)
-	sessionKeySignature, err := kr.SignDetached(sessionKeyPlainMessage)
-	if err != nil {
-		return nil, err
-	}
-	armoredSessionKeySignature, err := sessionKeySignature.GetArmored()
+	armoredSessionKeySignature, err := signDetachedArmored(kr, newSessionKey.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -191,12 +179,12 @@ func (commitRevisionReq *CommitRevisionReq) SetEncXAttrString(addrKR, nodeKR *cr
 		return err
 	}
 
-	encXattr, err := nodeKR.Encrypt(crypto.NewPlainMessage(jsonByteArr), addrKR)
+	encXattr, err := encryptMessage(nodeKR, jsonByteArr, addrKR)
 	if err != nil {
 		return err
 	}
 
-	encXattrString, err := encXattr.GetArmored()
+	encXattrString, err := encXattr.Armor()
 	if err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/ProtonMail/gluon/rfc822"
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/bradenaw/juniper/xslices"
 	"github.com/rclone/go-proton-api"
 	"golang.org/x/exp/maps"
@@ -668,7 +668,7 @@ func (b *Backend) SendMessage(userID, messageID string, packages []*proton.Messa
 									return err
 								}
 
-								armBody, err := crypto.NewPGPSplitMessage(bodyKey, bodyData).GetPGPMessage().GetArmored()
+								armBody, err := crypto.NewPGPSplitMessage(bodyKey, bodyData).Armor()
 								if err != nil {
 									return err
 								}

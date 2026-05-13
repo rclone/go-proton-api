@@ -2,11 +2,34 @@ package backend
 
 import (
 	"github.com/ProtonMail/go-srp"
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
-	"github.com/ProtonMail/gopenpgp/v2/helper"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 )
 
-var GenerateKey = helper.GenerateKey
+// GenerateKey is the v3 equivalent of the v2 helper.GenerateKey: it generates
+// a new pgp key, encrypts it with the given passphrase, and returns the armored
+// string. keyType controls the algorithm ("rsa" -> 4096-bit RSA, anything else
+// uses the profile default, which is curve25519). bits is ignored in v3.
+var GenerateKey = func(name, email string, passphrase []byte, keyType string, bits int) (string, error) {
+	pgp := crypto.PGP()
+
+	builder := pgp.KeyGeneration().AddUserId(name, email)
+	if keyType == "rsa" {
+		builder = builder.OverrideProfileAlgorithm(crypto.KeyGenerationRSA4096)
+	}
+
+	key, err := builder.New().GenerateKey()
+	if err != nil {
+		return "", err
+	}
+	defer key.ClearPrivateParams()
+
+	locked, err := pgp.LockKey(key, passphrase)
+	if err != nil {
+		return "", err
+	}
+
+	return locked.Armor()
+}
 
 func hashPassword(password, salt []byte) ([]byte, error) {
 	passphrase, err := srp.MailboxPassword(password, salt)
@@ -18,25 +41,32 @@ func hashPassword(password, salt []byte) ([]byte, error) {
 }
 
 func encryptWithSignature(kr *crypto.KeyRing, b []byte) (string, string, error) {
-	enc, err := kr.Encrypt(crypto.NewPlainMessage(b), nil)
+	pgp := crypto.PGP()
+
+	encHandle, err := pgp.Encryption().Recipients(kr).New()
 	if err != nil {
 		return "", "", err
 	}
 
-	encArm, err := enc.GetArmored()
+	enc, err := encHandle.Encrypt(b)
 	if err != nil {
 		return "", "", err
 	}
 
-	sig, err := kr.SignDetached(crypto.NewPlainMessage(b))
+	encArm, err := enc.Armor()
 	if err != nil {
 		return "", "", err
 	}
 
-	sigArm, err := sig.GetArmored()
+	signHandle, err := pgp.Sign().SigningKeys(kr).Detached().New()
 	if err != nil {
 		return "", "", err
 	}
 
-	return encArm, sigArm, nil
+	sigArm, err := signHandle.Sign(b, crypto.Armor)
+	if err != nil {
+		return "", "", err
+	}
+
+	return encArm, string(sigArm), nil
 }

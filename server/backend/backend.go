@@ -8,7 +8,7 @@ import (
 
 	"github.com/ProtonMail/gluon/rfc822"
 	"github.com/ProtonMail/go-srp"
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/bradenaw/juniper/xslices"
 	"github.com/google/uuid"
 	"github.com/rclone/go-proton-api"
@@ -467,12 +467,17 @@ func (b *Backend) Encrypt(userID, addrID, decBody string) (string, error) {
 			return "", err
 		}
 
-		enc, err := kr.Encrypt(crypto.NewPlainMessageFromString(decBody), nil)
+		encHandle, err := crypto.PGP().Encryption().Recipients(kr).New()
 		if err != nil {
 			return "", err
 		}
 
-		return enc.GetArmored()
+		enc, err := encHandle.Encrypt([]byte(decBody))
+		if err != nil {
+			return "", err
+		}
+
+		return enc.Armor()
 	})
 }
 

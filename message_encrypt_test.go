@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/ProtonMail/gluon/rfc822"
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +21,7 @@ Content-type: text/plain
 
 This is explicitly typed plain ASCII text.
 `
-	key, err := crypto.GenerateKey("foobar", "foo@bar.com", "x25519", 0)
+	key, err := crypto.PGP().KeyGeneration().AddUserId("foobar", "foo@bar.com").New().GenerateKey()
 	require.NoError(t, err)
 
 	kr, err := crypto.NewKeyRing(key)
@@ -50,9 +50,9 @@ This is explicitly typed plain ASCII text.
 	require.NoError(t, err)
 
 	// Decrypt the PGP message.
-	dec, err := kr.Decrypt(enc, nil, crypto.GetUnixTime())
+	dec, err := decryptMessage(kr, enc, nil, 0)
 	require.NoError(t, err)
-	require.Equal(t, "This is explicitly typed plain ASCII text.\n", dec.GetString())
+	require.Equal(t, "This is explicitly typed plain ASCII text.\n", string(dec))
 }
 
 func TestEncryptMessage_MultipleTextParts(t *testing.T) {
@@ -79,7 +79,7 @@ It DOES end with a linebreak.
 --simple boundary--
 This is the epilogue.  It is also to be ignored.
 `
-	key, err := crypto.GenerateKey("foobar", "foo@bar.com", "x25519", 0)
+	key, err := crypto.PGP().KeyGeneration().AddUserId("foobar", "foo@bar.com").New().GenerateKey()
 	require.NoError(t, err)
 
 	kr, err := crypto.NewKeyRing(key)
@@ -161,7 +161,7 @@ SGVsbG8gQXR0YWNobWVudA==
 
 --simple boundary--
 `
-	key, err := crypto.GenerateKey("foobar", "foo@bar.com", "x25519", 0)
+	key, err := crypto.PGP().KeyGeneration().AddUserId("foobar", "foo@bar.com").New().GenerateKey()
 	require.NoError(t, err)
 
 	kr, err := crypto.NewKeyRing(key)
@@ -227,8 +227,8 @@ SGVsbG8gQXR0YWNobWVudA==
 		enc := crypto.NewPGPMessage(bodyDecoded)
 
 		// Decrypt the PGP message.
-		dec, err := kr.Decrypt(enc, nil, crypto.GetUnixTime())
+		dec, err := decryptMessage(kr, enc, nil, 0)
 		require.NoError(t, err)
-		require.Equal(t, "Hello Attachment", dec.GetString())
+		require.Equal(t, "Hello Attachment", string(dec))
 	}
 }

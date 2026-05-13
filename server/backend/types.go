@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/google/uuid"
 	"github.com/rclone/go-proton-api"
 )

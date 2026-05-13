@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,9 +23,9 @@ func TestDecrypt(t *testing.T) {
 	enc, err := crypto.NewPGPMessageFromArmored(msg.Body)
 	require.NoError(t, err)
 
-	dec, err := prvKR.Decrypt(enc, nil, crypto.GetUnixTime())
+	dec, err := decryptMessage(prvKR, enc, nil, 0)
 	require.NoError(t, err)
-	require.NoError(t, pubKR.VerifyDetached(dec, sigs[0].Data, crypto.GetUnixTime()))
+	require.NoError(t, verifyDetached(pubKR, dec, sigs[0].Data, 0))
 }
 
 func loadKeyRing(t *testing.T, file string, pass []byte) *crypto.KeyRing {
@@ -36,7 +36,7 @@ func loadKeyRing(t *testing.T, file string, pass []byte) *crypto.KeyRing {
 		require.NoError(t, f.Close())
 	}()
 
-	key, err := crypto.NewKeyFromArmoredReader(f)
+	key, err := crypto.NewKeyFromReader(f)
 	require.NoError(t, err)
 
 	if pass != nil {

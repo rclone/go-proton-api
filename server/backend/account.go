@@ -3,7 +3,7 @@ package backend
 import (
 	"sync"
 
-	"github.com/ProtonMail/gopenpgp/v2/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/bradenaw/juniper/xslices"
 	"github.com/google/uuid"
 	"github.com/rclone/go-proton-api"
