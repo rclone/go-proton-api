@@ -112,12 +112,15 @@ func (createFileReq *CreateFileReq) SetHash(name string, hashKey []byte) error {
 }
 
 func (createFileReq *CreateFileReq) SetContentKeyPacketAndSignature(kr *crypto.KeyRing) (*crypto.SessionKey, error) {
-	newSessionKey, err := crypto.PGP().GenerateSessionKey()
+	// Generate the content session key with the crypto-refresh handle so it
+	// carries the v6 flag; this is what makes the content key packet a v6
+	// PKESK and the file data blocks v2 SEIPD (see protonDrivePGP).
+	newSessionKey, err := protonDrivePGP().GenerateSessionKey()
 	if err != nil {
 		return nil, err
 	}
 
-	encSessionKey, err := encryptSessionKey(kr, newSessionKey)
+	encSessionKey, err := encryptContentKeyPacket(kr, newSessionKey)
 	if err != nil {
 		return nil, err
 	}

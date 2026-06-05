@@ -14,9 +14,35 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	"github.com/ProtonMail/gopenpgp/v3/armor"
 	"github.com/ProtonMail/gopenpgp/v3/crypto"
+	"github.com/ProtonMail/gopenpgp/v3/profile"
 )
+
+// protonDrivePGP returns a gopenpgp handle configured for Proton Drive's
+// crypto-refresh (RFC 9580) file-content format: a v6 key packet (PKESK) and a
+// v2 SEIPD data packet using AES-256-GCM. The RFC9580 profile defaults the AEAD
+// mode to OCB, so we override it to GCM (the mode Proton Drive requires).
+//
+// A session key generated from this handle carries the v6 flag, which selects
+// the v6 PKESK when the session key is encrypted to the (v6) file node key, and
+// the v2 SEIPD when it later encrypts the file blocks.
+func protonDrivePGP() *crypto.PGPHandle {
+	p := profile.RFC9580()
+	p.AeadEncryption = &packet.AEADConfig{DefaultMode: packet.AEADModeGCM}
+	return crypto.PGPWithProfile(p)
+}
+
+// encryptContentKeyPacket wraps a Proton Drive content session key into a v6
+// PKESK key packet for the given recipient (node) keyring.
+func encryptContentKeyPacket(kr *crypto.KeyRing, sk *crypto.SessionKey) ([]byte, error) {
+	eh, err := protonDrivePGP().Encryption().Recipients(kr).New()
+	if err != nil {
+		return nil, err
+	}
+	return eh.EncryptSessionKey(sk)
+}
 
 // serverTimeUnix stores the most recently observed server Unix time, sampled
 // from the Date response header. v2 used a global crypto.UpdateTime for this
