@@ -116,15 +116,19 @@ func (createFileReq *CreateFileReq) SetHash(name string, hashKey []byte) error {
 }
 
 func (createFileReq *CreateFileReq) SetContentKeyPacketAndSignature(kr *crypto.KeyRing) (*crypto.SessionKey, error) {
-	// Generate the content session key with the crypto-refresh handle so it
-	// carries the v6 flag; this is what makes the content key packet a v6
-	// PKESK and the file data blocks v2 SEIPD (see protonDrivePGP).
-	newSessionKey, err := protonDrivePGP().GenerateSessionKey()
+	// New files use the pre-crypto-refresh content format: a non-v6 session
+	// key wrapped in a v3 PKESK, giving v1 SEIPD data blocks. The official
+	// Proton clients (web included) do not yet create or reliably read files
+	// in the crypto-refresh format, so originating it makes the file
+	// undecryptable in the Proton apps. Revisions of existing crypto-refresh
+	// files are unaffected: they reuse the file's stored (v6) content key,
+	// which selects the v2 SEIPD block format automatically.
+	newSessionKey, err := crypto.PGP().GenerateSessionKey()
 	if err != nil {
 		return nil, err
 	}
 
-	encSessionKey, err := encryptContentKeyPacket(kr, newSessionKey)
+	encSessionKey, err := encryptSessionKey(kr, newSessionKey)
 	if err != nil {
 		return nil, err
 	}
