@@ -12,7 +12,11 @@ import (
 
 /* Helper function */
 func getEncryptedName(name string, addrKR, nodeKR *crypto.KeyRing) (string, error) {
-	encName, err := encryptMessage(nodeKR, []byte(name), addrKR)
+	// Names are currently always encrypted to a v4 parent node key, but
+	// Proton Drive forbids AEAD for names regardless of the recipient key's
+	// preferences, so use the format-pinning helper to stay correct if
+	// parent keys ever become v6.
+	encName, err := EncryptMessageNonAead(nodeKR, []byte(name), addrKR)
 	if err != nil {
 		return "", err
 	}
@@ -182,7 +186,9 @@ func (commitRevisionReq *CommitRevisionReq) SetEncXAttrString(addrKR, nodeKR *cr
 		return err
 	}
 
-	encXattr, err := encryptMessage(nodeKR, jsonByteArr, addrKR)
+	// The xattr is encrypted to the node key, which for files is a v6 key;
+	// AEAD must not be used here (see EncryptMessageNonAead).
+	encXattr, err := EncryptMessageNonAead(nodeKR, jsonByteArr, addrKR)
 	if err != nil {
 		return err
 	}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	"github.com/ProtonMail/gopenpgp/v3/armor"
+	"github.com/ProtonMail/gopenpgp/v3/constants"
 	"github.com/ProtonMail/gopenpgp/v3/crypto"
 	"github.com/ProtonMail/gopenpgp/v3/profile"
 )
@@ -80,6 +81,44 @@ func encryptMessage(kr *crypto.KeyRing, plaintext []byte, signKR *crypto.KeyRing
 		return nil, err
 	}
 	return eh.Encrypt(plaintext)
+}
+
+// EncryptMessageNonAead encrypts plaintext bytes to the given recipients,
+// optionally signing with signKR, always producing the pre-crypto-refresh
+// wire format: a v3 PKESK followed by a v1 SEIPD packet.
+//
+// Encrypting via the recipients path (encryptMessage) selects the
+// crypto-refresh format (v6 PKESK + v2 SEIPD with AEAD) whenever every
+// recipient key advertises support for it, which Proton Drive's v6 file node
+// keys do. Proton Drive requires the old format for everything except file
+// content — names, node passphrases, extended attributes and block signatures
+// must not use AEAD regardless of the recipient key's preferences, otherwise
+// the official Proton clients fail to decrypt them. To sidestep the format
+// negotiation, the data is encrypted with an explicitly generated non-v6
+// session key (yielding the v1 SEIPD) and the session key is wrapped for the
+// recipients separately (yielding the v3 PKESK).
+func EncryptMessageNonAead(kr *crypto.KeyRing, plaintext []byte, signKR *crypto.KeyRing) (*crypto.PGPMessage, error) {
+	sk, err := crypto.GenerateSessionKeyAlgo(constants.AES256)
+	if err != nil {
+		return nil, err
+	}
+	keyPacket, err := encryptSessionKey(kr, sk)
+	if err != nil {
+		return nil, err
+	}
+	builder := crypto.PGP().Encryption().SessionKey(sk)
+	if signKR != nil {
+		builder = builder.SigningKeys(signKR)
+	}
+	eh, err := builder.New()
+	if err != nil {
+		return nil, err
+	}
+	dataMsg, err := eh.Encrypt(plaintext)
+	if err != nil {
+		return nil, err
+	}
+	return crypto.NewPGPMessage(append(keyPacket, dataMsg.Bytes()...)), nil
 }
 
 // decryptMessage decrypts a PGP message, optionally verifying signatures
