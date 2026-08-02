@@ -8,6 +8,29 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+// GetRevisionVerification fetches the verification code for a draft revision from the
+// v2 volume-based API. The VerificationCode is XOR'd with each block's encrypted bytes
+// to produce a per-block Verifier.Token that the storage backend requires.
+func (c *Client) GetRevisionVerification(ctx context.Context, volumeID, linkID, revisionID string) (RevisionVerification, error) {
+	var res struct {
+		VerificationCode string
+		ContentKeyPacket string
+	}
+
+	if err := c.do(ctx, func(r *resty.Request) (*resty.Response, error) {
+		return r.SetResult(&res).Get(
+			"/drive/v2/volumes/" + volumeID + "/links/" + linkID + "/revisions/" + revisionID + "/verification",
+		)
+	}); err != nil {
+		return RevisionVerification{}, err
+	}
+
+	return RevisionVerification{
+		VerificationCode: res.VerificationCode,
+		ContentKeyPacket: res.ContentKeyPacket,
+	}, nil
+}
+
 func (c *Client) ListRevisions(ctx context.Context, shareID, linkID string) ([]RevisionMetadata, error) {
 	var res struct {
 		Revisions []RevisionMetadata

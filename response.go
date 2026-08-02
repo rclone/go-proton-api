@@ -183,7 +183,13 @@ func catchRetryAfter(_ *resty.Client, res *resty.Response) (time.Duration, error
 }
 
 func catchTooManyRequests(res *resty.Response, _ error) bool {
-	return res.StatusCode() == http.StatusTooManyRequests || res.StatusCode() == http.StatusServiceUnavailable
+	switch res.StatusCode() {
+	case http.StatusTooManyRequests,    // 429
+		http.StatusBadGateway,          // 502 — storage servers return this transiently
+		http.StatusServiceUnavailable:  // 503
+		return true
+	}
+	return false
 }
 
 func catchDialError(res *resty.Response, err error) bool {
