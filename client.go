@@ -21,6 +21,13 @@ type AuthHandler func(Auth)
 // Handler is a generic function that can be registered for a certain event (e.g. deauth, API code).
 type Handler func()
 
+// AuthRefreshHook is consulted before a client refreshes its session, and
+// again if that refresh is rejected. It returns the most recently persisted
+// credentials for the session, so that a client whose refresh token has been
+// rotated by another client (or another process) can adopt them instead of
+// failing. ok is false when nothing is available.
+type AuthRefreshHook func() (uid, acc, ref string, ok bool)
+
 // Client is the proton client.
 type Client struct {
 	m *Manager
@@ -33,9 +40,10 @@ type Client struct {
 	ref      string
 	authLock sync.RWMutex
 
-	authHandlers   []AuthHandler
-	deauthHandlers []Handler
-	hookLock       sync.RWMutex
+	authHandlers     []AuthHandler
+	deauthHandlers   []Handler
+	authRefreshHooks []AuthRefreshHook
+	hookLock         sync.RWMutex
 
 	deauthOnce sync.Once
 }
@@ -62,6 +70,13 @@ func (c *Client) AddDeauthHandler(handler Handler) {
 	defer c.hookLock.Unlock()
 
 	c.deauthHandlers = append(c.deauthHandlers, handler)
+}
+
+func (c *Client) AddAuthRefreshHook(hook AuthRefreshHook) {
+	c.hookLock.Lock()
+	defer c.hookLock.Unlock()
+
+	c.authRefreshHooks = append(c.authRefreshHooks, hook)
 }
 
 func (c *Client) AddPreRequestHook(hook resty.RequestMiddleware) {
@@ -178,6 +193,13 @@ func (c *Client) authRefresh(ctx context.Context) error {
 	c.hookLock.RLock()
 	defer c.hookLock.RUnlock()
 
+	// Refresh tokens are single use. If another client has already refreshed
+	// this session, our copy of the token is spent and the refresh would be
+	// rejected, so adopt the rotated credentials instead.
+	if c.adoptNewerAuth() {
+		return nil
+	}
+
 	auth, err := c.m.authRefresh(ctx, c.uid, c.ref)
 
 	if err != nil {
@@ -185,6 +207,11 @@ func (c *Client) authRefresh(ctx context.Context) error {
 
 			switch respErr.Response.StatusCode() {
 			case http.StatusBadRequest, http.StatusUnprocessableEntity:
+				// The rotation may have happened after we checked above.
+				if c.adoptNewerAuth() {
+					return nil
+				}
+
 				c.deauthOnce.Do(func() {
 					for _, handler := range c.deauthHandlers {
 						handler()
@@ -210,4 +237,30 @@ func (c *Client) authRefresh(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// adoptNewerAuth asks the refresh hooks for persisted credentials and adopts
+// them if they carry a refresh token other than the one this client holds.
+// Must be called with authLock and hookLock held.
+func (c *Client) adoptNewerAuth() bool {
+	for _, hook := range c.authRefreshHooks {
+		uid, acc, ref, ok := hook()
+		if !ok || ref == "" || ref == c.ref {
+			continue
+		}
+
+		c.uid = uid
+		c.acc = acc
+		c.ref = ref
+
+		auth := Auth{UID: uid, AccessToken: acc, RefreshToken: ref}
+
+		for _, handler := range c.authHandlers {
+			handler(auth)
+		}
+
+		return true
+	}
+
+	return false
 }
