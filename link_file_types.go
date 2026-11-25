@@ -192,7 +192,12 @@ func (commitRevisionReq *CommitRevisionReq) SetEncXAttrString(addrKR, nodeKR *cr
 
 	// The xattr is encrypted to the node key, which for files is a v6 key;
 	// AEAD must not be used here (see EncryptMessageNonAead).
-	encXattr, err := EncryptMessageNonAead(nodeKR, jsonByteArr, addrKR)
+	//
+	// Compress it like the official clients do. BlockSizes holds one entry
+	// per 4 MiB block, so without compression the XAttr of a file of tens of
+	// gigabytes exceeds the API's 65535-character limit and the commit fails
+	// with "This value is too long" (Code=2024).
+	encXattr, err := encryptMessageNonAeadCompressed(nodeKR, jsonByteArr, addrKR)
 	if err != nil {
 		return err
 	}
