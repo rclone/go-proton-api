@@ -136,6 +136,48 @@ func TestSetEncXAttrStringNonAead(t *testing.T) {
 	}
 }
 
+// TestSetEncXAttrStringLargeFile checks that the xattr of a large file fits
+// the API's 65535-character limit. BlockSizes has one entry per 4 MiB block,
+// so a 76 GB file has about 18,000 entries. Uncompressed, its xattr is about
+// 197,000 characters and the revision commit fails with Code=2024.
+func TestSetEncXAttrStringLargeFile(t *testing.T) {
+	addrKR := newTestKeyRing(t, false)
+	nodeKR := newTestKeyRing(t, true)
+
+	const blockSize = 4 * 1024 * 1024
+	blockSizes := make([]int64, 18157)
+	for i := range blockSizes {
+		blockSizes[i] = blockSize
+	}
+	xattr := &proton.RevisionXAttrCommon{
+		ModificationTime: "2026-08-01T00:00:00+0000",
+		Size:             int64(len(blockSizes)) * blockSize,
+		BlockSizes:       blockSizes,
+		Digests:          map[string]string{"SHA1": "0123456789abcdef0123456789abcdef01234567"},
+	}
+	var req proton.CommitRevisionReq
+	if err := req.SetEncXAttrString(addrKR, nodeKR, xattr); err != nil {
+		t.Fatalf("SetEncXAttrString: %v", err)
+	}
+	if n := len(req.XAttr); n > 65535 {
+		t.Fatalf("xattr is %d characters, the API allows 65535", n)
+	}
+
+	msg, err := crypto.NewPGPMessageFromArmored(req.XAttr)
+	if err != nil {
+		t.Fatalf("unarmor xattr: %v", err)
+	}
+	checkNonAeadFormat(t, "xattr", msg.Bytes())
+
+	got, err := (&proton.RevisionMetadata{XAttr: req.XAttr}).GetDecXAttrString(addrKR, nodeKR)
+	if err != nil {
+		t.Fatalf("decrypt xattr: %v", err)
+	}
+	if got.Size != xattr.Size || len(got.BlockSizes) != len(blockSizes) {
+		t.Fatalf("xattr round-trip mismatch: size %d, %d block sizes", got.Size, len(got.BlockSizes))
+	}
+}
+
 // TestSetNameNonAead checks that the encrypted name is written in the old
 // wire format even if the recipient node key is v6.
 func TestSetNameNonAead(t *testing.T) {

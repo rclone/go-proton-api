@@ -72,6 +72,17 @@ func encryptMessage(kr *crypto.KeyRing, plaintext []byte, signKR *crypto.KeyRing
 // session key (yielding the v1 SEIPD) and the session key is wrapped for the
 // recipients separately (yielding the v3 PKESK).
 func EncryptMessageNonAead(kr *crypto.KeyRing, plaintext []byte, signKR *crypto.KeyRing) (*crypto.PGPMessage, error) {
+	return encryptMessageNonAead(kr, plaintext, signKR, false)
+}
+
+// encryptMessageNonAeadCompressed is EncryptMessageNonAead with the plaintext
+// compressed before encryption, as the official Proton clients do for
+// extended attributes.
+func encryptMessageNonAeadCompressed(kr *crypto.KeyRing, plaintext []byte, signKR *crypto.KeyRing) (*crypto.PGPMessage, error) {
+	return encryptMessageNonAead(kr, plaintext, signKR, true)
+}
+
+func encryptMessageNonAead(kr *crypto.KeyRing, plaintext []byte, signKR *crypto.KeyRing, compress bool) (*crypto.PGPMessage, error) {
 	sk, err := crypto.GenerateSessionKeyAlgo(constants.AES256)
 	if err != nil {
 		return nil, err
@@ -83,6 +94,9 @@ func EncryptMessageNonAead(kr *crypto.KeyRing, plaintext []byte, signKR *crypto.
 	builder := crypto.PGP().Encryption().SessionKey(sk)
 	if signKR != nil {
 		builder = builder.SigningKeys(signKR)
+	}
+	if compress {
+		builder = builder.Compress()
 	}
 	eh, err := builder.New()
 	if err != nil {
